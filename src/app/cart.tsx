@@ -6,11 +6,17 @@ import { Product } from '@/components/product';
 import { ProductCartProps, useCartStore } from '@/stores/cart-store';
 import { formatCurrency } from '@/utils/functions/format-currency';
 import { Feather } from '@expo/vector-icons';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { useNavigation } from 'expo-router';
+import { useState } from 'react';
+import { Alert, Linking, ScrollView, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+
+const PHONE_NUMBER = "55DDD00000000";
 
 export default function Cart() {
 
+    const [ address, setAddress ] = useState();
+    const navigation = useNavigation();
     const cartStore = useCartStore();
     const total = formatCurrency(cartStore.products
         .reduce((total, product) => total + product.price * product.quantity, 0));
@@ -27,6 +33,29 @@ export default function Cart() {
                     onPress: () => cartStore.remove(product.id),
                 },
             ])
+    }
+
+    function handleOrder() {
+        if (address.trim().length === 0) {
+            return Alert.alert("Pedido", "Informe os dados da entrega.");
+        }
+
+        const products = cartStore.products.map((product) =>
+            `\n ${product.quantity} ${product.title}`).join("");
+        const message = `
+        NOVO PEDIDO
+        \n Entregar em: ${address}
+                
+        ${products}
+        
+        \n Valor total: ${total}
+        `;
+
+        Linking.openURL(`https://api.whatsapp.com/send?phone=${PHONE_NUMBER}&text=${message}`)
+            .then(r => console.log("Pedido enviado para o whatsapp"));
+
+        cartStore.clear();
+        navigation.goBack();
     }
 
     return (
@@ -56,13 +85,18 @@ export default function Cart() {
                             <Text className="text-lime-400 text-2xl font-heading">{total}</Text>
                         </View>
 
-                        <Input placeholder="Informe o endereço de entrega com rua, baixo CEP, número e complemento..."/>
+                        <Input
+                            placeholder="Informe o endereço de entrega com rua, baixo CEP, número e complemento..."
+                            onChangeText={setAddress}
+                            blurOnSubmit={true}
+                            onSubmitEditing={handleOrder}
+                            returnKeyType="next"/>
                     </View>
                 </ScrollView>
             </KeyboardAwareScrollView>
 
             <View className="p-5 gap-5">
-                <Button>
+                <Button onPress={handleOrder}>
                     <Button.Text>Enviar pedido</Button.Text>
                     <Button.Icon>
                         <Feather name="arrow-right-circle" size={20}/>
